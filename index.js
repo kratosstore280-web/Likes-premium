@@ -4,8 +4,7 @@ const {
     default: makeWASocket,
     useMultiFileAuthState,
     DisconnectReason,
-    fetchLatestBaileysVersion,
-    delay
+    fetchLatestBaileysVersion
 } = require('@whiskeysockets/baileys');
 
 const { Boom } = require('@hapi/boom');
@@ -52,44 +51,31 @@ const saveDB = (db) =>
 
 const TEMAS = {
 
-    // ================= KRATOS =================
-
     kratos: {
 
         nome: "KRATOS",
         emoji: "⚔️",
         foto: "./kratos.jpg",
 
-        titulo: "🔥 KRATOS STORE",
-        vipMsg: "🛡️ *VIP KRATOS ATIVO*",
+        vipMsg: "🛡️ VIP KRATOS",
 
         tabelaVip:
-`🛡️ *PLANOS KRATOS STORE*
+`🛡️ *PLANOS KRATOS*
 
-🔥 VIP SEMANAL: R$ 10
-🔥 VIP MENSAL: R$ 25
+🔥 VIP SEMANAL: R$10
+🔥 VIP MENSAL: R$25
 
-📞 Comprar:
-wa.me/${CONTATO_COMPRA}`,
+📞 wa.me/${CONTATO_COMPRA}`,
 
         menu:
-`🛡️ *KRATOS STORE*
+`⚔️ *KRATOS STORE*
 
 🔥 /like [id]
 🎟️ /pass [id]
-🔍 /check [id]
 👑 /vip
-💰 /saldo
-🛒 /comprar
 🎨 /tema
-📋 /menu`,
-
-        loading: "⚔️ Processando...",
-        erro: "❌ Erro no sistema.",
-        negado: "🚫 Sem permissão."
+📋 /menu`
     },
-
-    // ================= PRINCESA =================
 
     princesa: {
 
@@ -97,36 +83,25 @@ wa.me/${CONTATO_COMPRA}`,
         emoji: "👑",
         foto: "./princesa.jpg",
 
-        titulo: "💖 PRINCESA STORE",
-        vipMsg: "🌸 *VIP PRINCESA ATIVO*",
+        vipMsg: "🌸 VIP PRINCESA",
 
         tabelaVip:
-`👑 *PLANOS PRINCESA STORE*
+`👑 *PLANOS PRINCESA*
 
-💎 VIP SEMANAL: R$ 12
-💎 VIP MENSAL: R$ 30
+💎 VIP SEMANAL: R$12
+💎 VIP MENSAL: R$30
 
-📞 Comprar:
-wa.me/${CONTATO_COMPRA}`,
+📞 wa.me/${CONTATO_COMPRA}`,
 
         menu:
 `👑 *PRINCESA STORE*
 
-💖 /like [id]
+🔥 /like [id]
 🎟️ /pass [id]
-🔍 /check [id]
 👑 /vip
-💰 /saldo
-🛒 /comprar
 🎨 /tema
-📋 /menu`,
-
-        loading: "🌸 Processando...",
-        erro: "❌ Erro no sistema.",
-        negado: "🚫 Sem permissão."
+📋 /menu`
     },
-
-    // ================= ZXGUILD =================
 
     zxguild: {
 
@@ -134,33 +109,24 @@ wa.me/${CONTATO_COMPRA}`,
         emoji: "⚡",
         foto: "./logo.jpg",
 
-        titulo: "⚡ ZXGUILD STORE",
-        vipMsg: "🔥 *VIP ZXGUILD ATIVO*",
+        vipMsg: "🔥 VIP ZXGUILD",
 
         tabelaVip:
 `⚡ *PLANOS ZXGUILD*
 
-💥 VIP SEMANAL: R$ 15
-💥 VIP MENSAL: R$ 35
+💥 VIP SEMANAL: R$15
+💥 VIP MENSAL: R$35
 
-📞 Comprar:
-wa.me/${CONTATO_COMPRA}`,
+📞 wa.me/${CONTATO_COMPRA}`,
 
         menu:
 `⚡ *ZXGUILD STORE*
 
 🔥 /like [id]
 🎟️ /pass [id]
-🔍 /check [id]
 👑 /vip
-💰 /saldo
-🛒 /comprar
 🎨 /tema
-📋 /menu`,
-
-        loading: "⚡ Processando...",
-        erro: "❌ Erro no sistema.",
-        negado: "🚫 Sem permissão."
+📋 /menu`
     }
 };
 
@@ -183,9 +149,7 @@ async function startBot() {
             level: 'silent'
         }),
 
-        browser: ["Ubuntu", "Chrome", "20.0.04"],
-
-        printQRInTerminal: false
+        browser: ['Ubuntu', 'Chrome', '20.0.04']
     });
 
     // ================= PAIR CODE =================
@@ -206,7 +170,7 @@ async function startBot() {
 
                 console.log(`
 ╔══════════════════╗
-║  CÓDIGO GERADO   ║
+║   CÓDIGO LOGIN   ║
 ╚══════════════════╝
 
 🔗 ${code}
@@ -296,6 +260,18 @@ async function startBot() {
 
             const db = getDB();
 
+            // ================= GRUPOS =================
+
+            if (isGroup && !db.grupos[from]) {
+
+                db.grupos[from] = {
+                    tema: 'kratos',
+                    modo: 'privado'
+                };
+
+                saveDB(db);
+            }
+
             const temaNome =
                 isGroup
                     ? (db.grupos[from]?.tema || 'kratos')
@@ -324,7 +300,7 @@ async function startBot() {
                 });
             };
 
-            // ================= PEGAR ALVO =================
+            // ================= GET TARGET =================
 
             const getTarget = () => {
 
@@ -344,7 +320,7 @@ async function startBot() {
                 return null;
             };
 
-            // ================= COMANDOS =================
+            // ================= SWITCH =================
 
             switch (cmd) {
 
@@ -363,10 +339,9 @@ async function startBot() {
 /delvip
 /vips
 /addpass
-/info
 /publico
 /privado
-`
+/info`
                             : '';
 
                     if (fs.existsSync(tema.foto)) {
@@ -396,7 +371,7 @@ ${adm}`
                 case 'info': {
 
                     if (!isDono)
-                        return reply(tema.negado);
+                        return reply("🚫 Sem permissão.");
 
                     reply(
 `📊 *INFO BOT*
@@ -412,49 +387,6 @@ ${Object.keys(db.passes).length}
 
 🏠 Grupos:
 ${Object.keys(db.grupos).length}`
-                    );
-
-                    break;
-                }
-
-                // ================= TEMA =================
-
-                case 'tema': {
-
-                    if (!isGroup)
-                        return reply("❌ Apenas em grupos.");
-
-                    if (!isDono)
-                        return reply(tema.negado);
-
-                    const temaNovo =
-                        q.toLowerCase();
-
-                    if (!TEMAS[temaNovo]) {
-
-                        return reply(
-`❌ Tema inexistente.
-
-🎨 Temas disponíveis:
-• kratos
-• princesa
-• zxguild`
-                        );
-                    }
-
-                    if (!db.grupos[from]) {
-                        db.grupos[from] = {};
-                    }
-
-                    db.grupos[from].tema =
-                        temaNovo;
-
-                    saveDB(db);
-
-                    reply(
-`✅ Tema alterado para:
-
-🎨 ${TEMAS[temaNovo].nome}`
                     );
 
                     break;
@@ -498,7 +430,7 @@ ${vip.ids_restantes}`
                 case 'addvip': {
 
                     if (!isDono)
-                        return reply(tema.negado);
+                        return reply("🚫 Sem permissão.");
 
                     const target =
                         getTarget();
@@ -516,7 +448,7 @@ ${vip.ids_restantes}`
                     saveDB(db);
 
                     reply(
-`✅ VIP adicionado
+`✅ VIP ADICIONADO
 
 👤 @${target}
 
@@ -532,7 +464,7 @@ ${qtd}`
                 case 'delvip': {
 
                     if (!isDono)
-                        return reply(tema.negado);
+                        return reply("🚫 Sem permissão.");
 
                     const target =
                         getTarget();
@@ -540,16 +472,12 @@ ${qtd}`
                     if (!target)
                         return reply("❌ Informe alguém.");
 
-                    if (!db.vips[target]) {
-                        return reply("❌ Não é VIP.");
-                    }
-
                     delete db.vips[target];
 
                     saveDB(db);
 
                     reply(
-`🗑️ VIP removido
+`🗑️ VIP REMOVIDO
 
 👤 @${target}`
                     );
@@ -562,7 +490,7 @@ ${qtd}`
                 case 'vips': {
 
                     if (!isDono)
-                        return reply(tema.negado);
+                        return reply("🚫 Sem permissão.");
 
                     let txt =
 `📋 *LISTA VIPS*
@@ -590,97 +518,326 @@ ${qtd}`
                     break;
                 }
 
-                // ================= LIKE =================
+                // ================= PUBLICO =================
 
-                case 'like': {
+                case 'publico': {
 
-                    const modoGrp =
-                        db.grupos[from]?.modo || 'privado';
+                    if (!isGroup)
+                        return reply("❌ Apenas em grupos.");
 
-                    if (
-                        modoGrp === 'privado' &&
-                        !isDono &&
-                        !db.vips[sender]
-                    ) {
+                    if (!isDono)
+                        return reply("🚫 Sem permissão.");
 
-                        return reply(tema.negado);
-                    }
+                    db.grupos[from].modo = 'publico';
 
-                    if (!q)
-                        return reply("❌ Digite o ID.");
+                    saveDB(db);
 
-                    try {
+                    reply(
+`✅ MODO ALTERADO
 
-                        await reply(tema.loading);
+🌍 Grupo agora está:
+PUBLICO
 
-                        const res =
-                            await axios.get(
-`https://likesff.online/api/LIKE?key=LIKESFF-KLFF-KRATOSLIKESEPASSES&id=`
-                            );
-
-                        const data = res.data;
-
-                        if (
-                            data.status === "success" &&
-                            data.likes_added > 0 &&
-                            !isDono &&
-                            db.vips[sender]
-                        ) {
-
-                            db.vips[sender].ids_restantes -= 1;
-
-                            if (
-                                db.vips[sender].ids_restantes <= 0
-                            ) {
-
-                                delete db.vips[sender];
-                            }
-
-                            saveDB(db);
-                        }
-
-                        reply(
-`${tema.emoji} *STATUS COMPLETO*
-
-👤 Nick:
-${data.nickname}
-
-🆔 ID:
-${data.id}
-
-🌎 Região:
-${data.region}
-
-📊 Nível:
-${data.level}
-
-✨ XP:
-${data.xp}
-
-❤️ Likes antes:
-${data.likes_before}
-
-🔥 Likes enviados:
-${data.likes_added}
-
-❤️ Likes agora:
-${data.likes_end}
-
-🕒 Último login:
-${data.login_end_formatted}`
-                        );
-
-                    } catch (e) {
-
-                        console.log(e.response?.data || e);
-
-                        reply("❌ Erro ao enviar likes.");
-                    }
+🔥 Todos podem usar /like`
+                    );
 
                     break;
                 }
 
-                // ================= PASS =================
+                // ================= PRIVADO =================
+
+                case 'privado': {
+
+                    if (!isGroup)
+                        return reply("❌ Apenas em grupos.");
+
+                    if (!isDono)
+                        return reply("🚫 Sem permissão.");
+
+                    db.grupos[from].modo = 'privado';
+
+                    saveDB(db);
+
+                    reply(
+`✅ MODO ALTERADO
+
+🔒 Grupo agora está:
+PRIVADO
+
+👑 Apenas VIPs usam /like`
+                    );
+
+                    break;
+                }
+
+                // ================= TEMA =================
+
+                case 'tema': {
+
+                    if (!isGroup)
+                        return reply("❌ Apenas em grupos.");
+
+                    if (!isDono)
+                        return reply("🚫 Sem permissão.");
+
+                    const temaNovo =
+                        q.toLowerCase();
+
+                    if (!TEMAS[temaNovo]) {
+
+                        return reply(
+`❌ Tema inexistente.
+
+🎨 Disponíveis:
+• kratos
+• princesa
+• zxguild`
+                        );
+                    }
+
+                    db.grupos[from].tema =
+                        temaNovo;
+
+                    saveDB(db);
+
+                    reply(
+`✅ Tema alterado:
+
+🎨 ${TEMAS[temaNovo].nome}`
+                    );
+
+                    break;
+                }
+
+                // ================= LIKE =================
+
+// ================= LIKE =================
+
+case 'like': {
+
+    const modoGrp =
+        db.grupos[from]?.modo || 'privado';
+
+    if (
+        modoGrp === 'privado' &&
+        !isDono &&
+        !db.vips[sender]
+    ) {
+
+        return reply(
+`🚫 ESTE GRUPO ESTÁ EM MODO VIP
+
+👑 Apenas VIPs podem usar:
+/like
+
+💎 Use:
+/vip`
+        );
+    }
+
+    if (!q) {
+
+        return reply(
+`❌ Use corretamente:
+
+/like 123456789`
+        );
+    }
+
+    try {
+
+        await reply("⏳ Puxando informações da conta...");
+
+        // ================= API LIKE =================
+
+        const likesRes =
+            await axios.get(
+                `https://likesff.online/api/LIKE?key=LIKESFF-KLFF-KRATOSLIKESEPASSES&id=${q}`
+            );
+
+        const likesData =
+            likesRes.data;
+
+        // ================= API PROFILE =================
+
+        let perfil = {};
+
+        try {
+
+            const perfilRes =
+                await axios.get(
+                    `https://ff-info-api.vercel.app/profile?uid=${q}&region=br`
+                );
+
+            perfil =
+                perfilRes.data || {};
+
+        } catch {}
+
+        // ================= DADOS =================
+
+        const acc =
+            perfil.AccountInfo || {};
+
+        const social =
+            perfil.socialinfo || {};
+
+        const guild =
+            perfil.GuildInfo || {};
+
+        const pet =
+            perfil.petInfo || {};
+
+        // ================= STATUS =================
+
+        let statusLikes = "✅ Likes enviados com sucesso";
+
+        if (
+            likesData.message === "LIKES_LIMIT"
+        ) {
+
+            statusLikes =
+                "⚠️ Conta atingiu limite diário";
+        }
+
+        // ================= TAXA =================
+
+        const enviados =
+            Number(likesData.likes_added || 0);
+
+        const falhados =
+            Number(likesData.likes_failed || 0);
+
+        const total =
+            enviados + falhados;
+
+        const taxa =
+            total > 0
+                ? ((enviados / total) * 100).toFixed(1)
+                : "0";
+
+        // ================= REMOVE VIP =================
+
+        if (
+            modoGrp === 'privado' &&
+            likesData.status === "success" &&
+            enviados >= 100 &&
+            !isDono &&
+            db.vips[sender]
+        ) {
+
+            db.vips[sender].ids_restantes -= 1;
+
+            if (
+                db.vips[sender].ids_restantes <= 0
+            ) {
+
+                delete db.vips[sender];
+            }
+
+            saveDB(db);
+        }
+
+        // ================= RESPOSTA =================
+
+        reply(
+`${tema.emoji} *PAINEL FREE FIRE*
+
+👤 Nick:
+${likesData.nickname || acc.AccountName || 'Desconhecido'}
+
+🆔 UID:
+${likesData.id || q}
+
+🌎 Região:
+${likesData.region || acc.AccountRegion || 'BR'}
+
+📊 Nível:
+${likesData.level || acc.AccountLevel || '0'}
+
+⭐ XP:
+${likesData.xp || '0'}
+
+📝 Bio:
+${likesData.bio || social.AccountSignature || 'Sem bio'}
+
+━━━━━━━━━━━━━━━
+
+❤️ Likes antes:
+${likesData.likes_before || '0'}
+
+🔥 Likes enviados:
+${likesData.likes_added || '0'}
+
+❌ Likes falhados:
+${likesData.likes_failed || '0'}
+
+❤️ Likes atuais:
+${likesData.likes_end || '0'}
+
+📈 Taxa sucesso:
+${taxa}%
+
+━━━━━━━━━━━━━━━
+
+🏰 Guilda:
+${guild.GuildName || 'Sem guilda'}
+
+🐾 Pet:
+${pet.name || 'Nenhum'}
+
+━━━━━━━━━━━━━━━
+
+⏰ Último login:
+${likesData.login_end_formatted || 'Não encontrado'}
+
+🕰️ Primeira vez online:
+${likesData.login_primary_formatted || 'Não encontrado'}
+
+━━━━━━━━━━━━━━━
+
+🔑 Key:
+${likesData.key || '0/0'}
+
+📦 Keys restantes:
+${likesData.key_remaining || '0'}
+
+📥 Key adicionada:
+${likesData.key_added ? 'SIM' : 'NÃO'}
+
+📢 Status:
+${likesData.key_message || 'Sem status'}
+
+🎯 Likes mínimos:
+${likesData.likes_required || '0'}
+
+━━━━━━━━━━━━━━━
+
+📡 Resultado:
+${statusLikes}
+
+🔐 Modo:
+${modoGrp.toUpperCase()}`
+        );
+
+    } catch (e) {
+
+        console.log(
+            e.response?.data || e
+        );
+
+        reply(
+`❌ ERRO AO PUXAR CONTA
+
+• ID inválido
+• API offline
+• Região incorreta
+• Conta inexistente`
+        );
+    }
+
+    break;
+}                // ================= PASS =================
 
                 case 'pass': {
 
@@ -702,7 +859,7 @@ ${data.login_end_formatted}`
 
                     try {
 
-                        await reply(tema.loading);
+                        await reply("⏳ Enviando passe...");
 
                         const res =
                             await axios.post(API_URL_HUB, {
@@ -723,7 +880,7 @@ ${data.login_end_formatted}`
                             }
 
                             reply(
-`🎟️ *PASS ENVIADO*
+`🎟️ PASS ENVIADO
 
 👤 Nick:
 ${res.data.Nickname || "Desconhecido"}
@@ -755,7 +912,7 @@ ${isDono ? '∞' : db.passes[sender]}`
                 case 'addpass': {
 
                     if (!isDono)
-                        return reply(tema.negado);
+                        return reply("🚫 Sem permissão.");
 
                     const target =
                         getTarget();
@@ -772,162 +929,30 @@ ${isDono ? '∞' : db.passes[sender]}`
                     saveDB(db);
 
                     reply(
-`✅ Passes adicionados
+`✅ PASS ADICIONADO
 
 👤 @${target}
 
 🎟️ Quantidade:
-${qtd}`
+${qtd}
+
+🎟️ Total:
+${db.passes[target]}`
                     );
 
                     break;
                 }
 
-                // ================= SALDO =================
-
-                case 'saldo': {
-
-                    const saldo =
-                        db.passes[sender] || 0;
-
-                    reply(
-`🎟️ *SEU SALDO*
-
-${isDono
-? '♾️ INFINITO'
-: saldo + ' passes'}`
-                    );
-
-                    break;
-                }
-
-                // ================= PUBLICO =================
-
-                case 'publico': {
-
-                    if (!isDono)
-                        return reply(tema.negado);
-
-                    if (!db.grupos[from]) {
-                        db.grupos[from] = {};
-                    }
-
-                    db.grupos[from].modo =
-                        'publico';
-
-                    saveDB(db);
-
-                    reply(
-                        "🔓 Grupo liberado."
-                    );
-
-                    break;
-                }
-
-                // ================= PRIVADO =================
-
-                case 'privado': {
-
-                    if (!isDono)
-                        return reply(tema.negado);
-
-                    if (!db.grupos[from]) {
-                        db.grupos[from] = {};
-                    }
-
-                    db.grupos[from].modo =
-                        'privado';
-
-                    saveDB(db);
-
-                    reply(
-                        "🔒 Apenas VIPs agora."
-                    );
-
-                    break;
-                }
-
-                // ================= CHECK =================
-
-                case 'check': {
-
-                    if (!q)
-                        return reply(
-                            "❌ Digite o ID."
-                        );
-
-                    try {
-
-                        await reply(
-                            tema.loading
-                        );
-
-                        const res =
-                            await axios.get(
-`https://likesff-info.squareweb.app/check_basic?id=${q}`
-                            );
-
-                        reply(
-`🔍 *INFO JOGADOR*
-
-👤 Nick:
-${res.data.nickname}
-
-🆔 ID:
-${q}
-
-📊 Nível:
-${res.data.level}
-
-🌎 Região:
-${res.data.region}`
-                        );
-
-                    } catch {
-
-                        reply(
-                            "❌ ID inválido."
-                        );
-                    }
-
-                    break;
-                }
-
-                // ================= COMPRAR =================
-
-                case 'comprar': {
-
-                    reply(
-`🛒 *TABELA KRATOS STORE*
-
-🔥 LIKE:
-R$ 0,25
-
-🎟️ PASS:
-R$ 7,00
-
-📞 Comprar:
-wa.me/${CONTATO_COMPRA}`
-                    );
-
-                    break;
-                }
-
-                // ================= DEFAULT =================
-
-                default: {
-
-                    reply(
-                        "❌ Comando inexistente."
-                    );
-                }
             }
 
-        } catch (e) {
+        } catch (err) {
 
-            console.log(e);
+            console.log(err);
+
         }
+
     });
+
 }
 
 startBot();

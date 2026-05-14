@@ -3,7 +3,7 @@
     "120363423839270786@g.us": {
       "tema": "kratos",
       "restrito": true,
-      "modo": "publico"
+      "modo": "privado"
     },
     "120363403714745776@g.us": {
       "limiteDia": 10,
@@ -85,11 +85,16 @@
       "modo": "publico"
     },
     "120363402156959866@g.us": {
-      "modo": "publico"
+      "modo": "publico",
+      "tema": "kratos"
     },
     "120363424037066804@g.us": {
       "tema": "kratos",
       "welcomeMsg": "🛡️ NOVO GUERREIRO: +1 entrou no Olimpo! Leia as regras e bons jogos."
+    },
+    "120363423079214370@g.us": {
+      "tema": "kratos",
+      "modo": "publico"
     }
   },
   "vips": {
@@ -97,10 +102,10 @@
       "expira": 1778805406757
     },
     "279838610952236": {
-      "ids_restantes": 18
+      "ids_restantes": 17
     },
     "83726730027068": {
-      "ids_restantes": 6
+      "ids_restantes": 10
     },
     "123064218034330": {
       "expira": 1778201119666
@@ -118,16 +123,16 @@
       "ids_restantes": 10
     },
     "187600396615717": {
-      "ids_restantes": 10
+      "ids_restantes": 8
     },
     "151251970978038": {
       "ids_restantes": 500
     },
     "127079509168247": {
-      "ids_restantes": 7
+      "ids_restantes": 5
     },
     "144779472048289": {
-      "ids_restantes": 13
+      "ids_restantes": 100
     },
     "54160024162341": {
       "ids_restantes": 15
@@ -148,7 +153,7 @@
       "ids_restantes": 5
     },
     "271717129805852": {
-      "ids_restantes": 30
+      "ids_restantes": 27
     },
     "34128531554490": {
       "ids_restantes": 30
