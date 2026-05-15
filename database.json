@@ -105,7 +105,7 @@
       "ids_restantes": 17
     },
     "83726730027068": {
-      "ids_restantes": 10
+      "ids_restantes": 9
     },
     "123064218034330": {
       "expira": 1778201119666
@@ -132,7 +132,7 @@
       "ids_restantes": 5
     },
     "144779472048289": {
-      "ids_restantes": 100
+      "ids_restantes": 98
     },
     "54160024162341": {
       "ids_restantes": 15
@@ -161,6 +161,17 @@
     "140785555103961": {
       "ids_restantes": 1
     }
+  },
+  "passes": {
+    "@187600396615717": 1,
+    "187600396615717": 2
+  },
+  "config": {
+    "publico": false
+  },
+  "stats": {
+    "likes_sent": 0,
+    "likes_failed": 0
   },
   "revendedores": [
     {
@@ -330,9 +341,5 @@
     "25701671538894": {
       "usos": 0
     }
-  },
-  "passes": {
-    "@187600396615717": 1,
-    "187600396615717": 2
   }
 }
