@@ -13,33 +13,26 @@ const axios = require('axios')
 // ================= CONFIGURAÇÕES =================
 const DB_PATH = './database.json'
 const NomeDoBot = 'KRATOS-STORE'
+const NUMERO_CONEXAO = '556993543234' 
+const DONOS = ['556993543234', '5551995588124', '44930357551239', '25701671538894']
 
 const API_URL_LIKE = 'https://likesff.online/api/LIKE?key=LIKESFF-KLFF-KRATOSLIKESEPASSES&id='
 const API_CHECK = 'https://likesff-info.squareweb.app/check_basic?id='
-const DONOS = ['556993543234', '5551995588124', '44930357551239', '25701671538894']
 
-// ================= DATABASE =================
-const initialDB = {
-    grupos: {},
-    vips: {},
-    passes: {},
-    config: { publico: true }
-}
-
-const getDB = () => {
-    try {
-        if (!fs.existsSync(DB_PATH)) return initialDB
-        return JSON.parse(fs.readFileSync(DB_PATH, 'utf8'))
-    } catch { return initialDB }
-}
-const saveDB = (db) => fs.writeFileSync(DB_PATH, JSON.stringify(db, null, 2))
-
-// ================= TEMAS =================
 const TEMAS = {
     kratos: { nome: 'KRATOS', emoji: '⚔️', foto: './kratos.jpg' },
     princesa: { nome: 'PRINCESA', emoji: '👑', foto: './princesa.jpg' },
     zxguild: { nome: 'ZXGUILD', emoji: '⚡', foto: './logo.jpg' }
 }
+
+// ================= DATABASE =================
+const getDB = () => {
+    const initial = { grupos: {}, vips: {}, passes: {} }
+    try {
+        return fs.existsSync(DB_PATH) ? JSON.parse(fs.readFileSync(DB_PATH, 'utf8')) : initial
+    } catch { return initial }
+}
+const saveDB = (db) => fs.writeFileSync(DB_PATH, JSON.stringify(db, null, 2))
 
 // ================= BOT CORE =================
 async function startBot() {
@@ -50,8 +43,22 @@ async function startBot() {
         auth: state,
         version,
         logger: P({ level: 'silent' }),
-        browser: ['Kratos-Store', 'Safari', '3.0']
+        browser: ["Ubuntu", "Chrome", "20.0.04"], // Identificação estável
+        printQRInTerminal: true
     })
+
+    // Solicitação de Código de Pareamento
+    if (!sock.authState.creds.registered) {
+        setTimeout(async () => {
+            try {
+                let code = await sock.requestPairingCode(NUMERO_CONEXAO)
+                code = code?.match(/.{1,4}/g)?.join('-') || code
+                console.log(`\n====================================`)
+                console.log(`🔥 SEU CÓDIGO DE CONEXÃO: ${code}`)
+                console.log(`====================================\n`)
+            } catch (err) { console.log('Erro ao gerar código:', err) }
+        }, 6000)
+    }
 
     sock.ev.on('creds.update', saveCreds)
 
@@ -59,8 +66,10 @@ async function startBot() {
         const { connection, lastDisconnect } = update
         if (connection === 'open') console.log(`✅ ${NomeDoBot} CONECTADO COM SUCESSO!`)
         if (connection === 'close') {
-            const shouldReconnect = (lastDisconnect?.error instanceof Boom) ? lastDisconnect.error.output.statusCode !== DisconnectReason.loggedOut : true
-            if (shouldReconnect) startBot()
+            const statusCode = (lastDisconnect?.error instanceof Boom) ? lastDisconnect.error.output.statusCode : 0
+            if (statusCode !== DisconnectReason.loggedOut) {
+                setTimeout(() => startBot(), 5000)
+            }
         }
     })
 
@@ -77,232 +86,194 @@ async function startBot() {
 
             const args = body.slice(1).split(/ +/)
             const cmd = args.shift().toLowerCase()
-            const sender = (isGroup ? msg.key.participant : from).replace(/\D/g, '')
+            const sender = (isGroup ? (msg.key.participant || from) : from).replace(/\D/g, '')
             
             const db = getDB()
             const isDono = DONOS.includes(sender)
             const isVip = isDono || (db.vips[sender] && db.vips[sender].ids > 0)
 
-            // Registro de Grupo e Tema
-            if (isGroup && !db.grupos[from]) db.grupos[from] = { tema: 'kratos' }
-            const currentTema = isGroup ? (db.grupos[from].tema || 'kratos') : 'kratos'
-            const T = TEMAS[currentTema] || TEMAS.kratos
+            // Configuração do Grupo
+            if (isGroup && !db.grupos[from]) {
+                db.grupos[from] = { tema: 'kratos', publico: true }
+                saveDB(db)
+            }
+            const grupo = isGroup ? db.grupos[from] : { tema: 'kratos', publico: true }
+            const T = TEMAS[grupo.tema] || TEMAS.kratos
 
             const reply = async (text) => {
                 const mentions = text.match(/@(\d+)/g)?.map(v => v.replace('@', '') + '@s.whatsapp.net') || []
                 await sock.sendMessage(from, { text, mentions }, { quoted: msg })
             }
 
-            // Controle de Acesso
-            if (!db.config.publico && !isDono && !isVip) {
-                if (['menu', 'perfil', 'like', 'check', 'saldo'].includes(cmd)) {
-                    return reply("🔒 *MODO PRIVADO*\nAcesso restrito apenas para VIPs ou Donos.")
-                }
-            }
+// Comandos que funcionam para todos mesmo em grupo privado
+const comandosLivres = ['menu', 'perfil', 'saldo', 'vip', 'check'];
+
+if (isGroup && !grupo.publico && !isDono && !isVip) {
+    // Se o comando digitado NÃO estiver na lista de livres, ele bloqueia
+    if (!comandosLivres.includes(cmd)) {
+        return reply("🔒 *COMANDO RESTRITO*\nApenas VIPs podem usar este comando em grupos privados.");
+    }
+}
 
             switch (cmd) {
-                case 'menu':
-                    const menuStr = `${T.emoji} *${T.nome} STORE*\n\n🔥 /like [id]\n🎟️ /pass [id]\n🔍 /check [id]\n👤 /perfil\n👑 /vip\n💰 /saldo\n🎨 /tema\n🚫 /ban\n📋 /menu`
-                    const adminStr = `\n\n👑 *ADMIN*\n/publico | /privado\n/addvip | /delvip\n/addpass | /vips\n/info`
+                case 'menu': {
+                    const menuStr = `${T.emoji} *${T.nome} STORE*\n\n🔥 /like [id]\n🎟️ /pass [id]\n🔍 /check [id]\n👤 /perfil\n💰 /saldo\n🎨 /tema\n🚫 /ban\n📋 /menu`
+                    const adminStr = `\n\n👑 *ADMIN*\n/publico | /privado\n/addvip | /delvip\n/addpass | /info\n/vips\n/clearlist`
                     const finalMenu = isDono ? menuStr + adminStr : menuStr
-
                     if (fs.existsSync(T.foto)) {
                         await sock.sendMessage(from, { image: fs.readFileSync(T.foto), caption: finalMenu }, { quoted: msg })
                     } else { reply(finalMenu) }
                     break
-
-                case 'tema':
-                    if (!isGroup) return reply('❌ Apenas grupos podem trocar temas.')
-                    const choice = args[0]?.toLowerCase()
-                    if (!TEMAS[choice]) return reply(`🎨 Escolha um tema válido: kratos, princesa ou zxguild`)
-                    db.grupos[from].tema = choice
-                    saveDB(db)
-                    reply(`${TEMAS[choice].emoji} *PERFEITO!*\nTema alterado para: ${choice.toUpperCase()}\nDigite /menu para ver o novo visual.`)
-                    break
-
-                case 'perfil':
-                case 'saldo':
-                case 'vip':
-                    const cargo = isDono ? 'DONO 👑' : (isVip ? 'VIP ⭐' : 'USUÁRIO 👤')
-                    const idsVip = isDono ? 'INFINITO' : (db.vips[sender]?.ids || 0)
-                    const passes = db.passes[sender] || 0
-                    reply(`👤 *PERFIL DE USUÁRIO*\n\n📞 Contato: @${sender}\n🎖️ Cargo: ${cargo}\n🔥 IDs VIP: ${idsVip}\n🎟️ Saldo Passes: ${passes}`)
-                    break
-
-case 'like':
-    const idL = args[0]
-    if (!idL) return reply('❌ Use: /like [id]')
-    
-    if (!isDono && !isVip && (db.passes[sender] || 0) <= 0) {
-        return reply('❌ Você não possui saldo (Keys) para enviar likes.')
-    }
-
-    reply(`⏳ Processando envio para o ID ${idL}...`)
-
-    try {
-        const { data } = await axios.get(`${API_URL_LIKE}${idL}`)
-        
-        // Lógica de saldo (Só desconta se a API reportar sucesso no envio)
-        let keysBot = isDono ? "INFINITO" : (isVip ? db.vips[sender].ids - 1 : (db.passes[sender] || 0) - 1)
-        
-        if (data.status === "success" && data.likes_added > 0 && !isDono) {
-            if (isVip) db.vips[sender].ids-- 
-            else db.passes[sender]--
-            saveDB(db)
-        }
-
-        const painelLike = `⚔️ *PAINEL FREE FIRE*
-
-👤 Nick:
-${data.nickname || '---'}
-
-🆔 UID:
-${data.id || idL}
-
-❤️ Likes iniciais: ${data.likes_before || '0'}
-✨ Adicionados: ${data.likes_added || '0'}
-🏆 Likes finais: ${data.likes_end || '0'}
-
-━━━━━━━━━━━━━━━
-
-🔑 Key:
-${data.key || '1/1'}
-
-📦 Keys restantes (Bot):
-${keysBot}
-
-📥 Key adicionada:
-${data.key_added ? 'SIM' : 'NÃO'}
-
-📢 Status:
-${data.key_message || 'Processado'}
-
-🎯 Likes mínimos:
-${data.likes_required || '100'}
-
-━━━━━━━━━━━━━━━
-
-📡 Resultado:
-${data.message === 'LIKES_SUCCESS' ? '✅ Likes enviados com sucesso!' : '⚠️ ' + data.message}
-
-🔐 Modo:
-${db.config.publico ? 'PÚBLICO' : 'PRIVADO'}`
-
-        await reply(painelLike)
-
-    } catch (error) {
-        reply(`❌ Erro na conexão com a API. Tente novamente mais tarde.`)
-    }
-    break
-
-case 'check':
-    const idC = args[0]
-    if (!idC) return reply('❌ Use: /check [id]')
-
-    reply(`🔍 Consultando ID ${idC}...`)
-
-    try {
-        const { data } = await axios.get(`${API_CHECK}${idC}`)
-        
-        const painelCheck = `⚔️ *PAINEL FREE FIRE*
-
-👤 Nick:
-${data.nickname || '---'}
-
-🆔 UID:
-${data.id || idC}
-
-🌎 Região: ${data.region || 'BR'}
-📊 Nível: ${data.level || '0'}
-⭐ XP: ${data.xp || '0'}
-
-📝 Bio:
-${data.bio || 'Sem bio'}
-
-━━━━━━━━━━━━━━━
-
-❤️ Likes atuais:
-${data.likes_end || data.likes_before || '0'}
-
-━━━━━━━━━━━━━━━
-
-⏰ Último login:
-${data.login_end_formatted || 'Não disponível'}
-
-🕰️ Primeira vez online:
-${data.login_primary_formatted || 'Não disponível'}
-
-━━━━━━━━━━━━━━━
-
-📡 Resultado:
-✅ Consulta realizada com sucesso
-
-🔐 Modo:
-${db.config.publico ? 'PÚBLICO' : 'PRIVADO'}`
-
-        await reply(painelCheck)
-
-    } catch (error) {
-        reply('❌ Erro ao consultar ID ou API offline.')
-    }
-    break
-
-                case 'addvip':
-                    if (!isDono) return
-                    const vUser = (msg.message.extendedTextMessage?.contextInfo?.mentionedJid?.[0] || args[0] || '').replace(/\D/g, '')
-                    const vQty = parseInt(args[1]) || 10
-                    if (!vUser) return reply('❌ Mencione alguém.')
-                    db.vips[vUser] = { ids: vQty }
-                    saveDB(db); reply(`⭐ VIP ADICIONADO\nUsuário: @${vUser}\nCota: ${vQty} IDs.`)
-                    break
-
-                case 'delvip':
-                    if (!isDono) return
-                    const dvUser = (msg.message.extendedTextMessage?.contextInfo?.mentionedJid?.[0] || args[0] || '').replace(/\D/g, '')
-                    if (db.vips[dvUser]) {
-                        delete db.vips[dvUser]
-                        saveDB(db); reply(`🚫 VIP removido de @${dvUser}`)
-                    } else { reply('❌ Usuário não era VIP.') }
-                    break
-
-                case 'vips':
-                    if (!isDono) return
-                    const vList = Object.keys(db.vips).map(v => `• @${v} (${db.vips[v].ids} IDs)`).join('\n') || 'Sem VIPs ativos.'
-                    reply(`👑 *VIPS ATIVOS*\n\n${vList}`)
-                    break
-
-                case 'addpass':
-                    if (!isDono) return
-                    const pUser = (msg.message.extendedTextMessage?.contextInfo?.mentionedJid?.[0] || args[0] || '').replace(/\D/g, '')
-                    const pQty = parseInt(args[1]) || 1
-                    db.passes[pUser] = (db.passes[pUser] || 0) + pQty
-                    saveDB(db); reply(`🎟️ +${pQty} passes para @${pUser}`)
-                    break
+                }
 
                 case 'publico':
-                    if (!isDono) return
-                    db.config.publico = true; saveDB(db); reply('⚙️ Modo: *PÚBLICO* (Todos usam)')
+                    if (!isDono || !isGroup) return
+                    db.grupos[from].publico = true; saveDB(db); reply('✅ Grupo PÚBLICO.')
                     break
 
                 case 'privado':
-                    if (!isDono) return
-                    db.config.publico = false; saveDB(db); reply('⚙️ Modo: *PRIVADO* (Apenas VIPs/Dono)')
+                    if (!isDono || !isGroup) return
+                    db.grupos[from].publico = false; saveDB(db); reply('🔒 Grupo PRIVADO.')
                     break
 
-                case 'ban':
+                case 'like': {
+                    const idL = args[0]
+                    if (!idL) return reply('❌ Informe o ID.')
+                    if (!isDono && !isVip && (db.passes[sender] || 0) <= 0) return reply('❌ Sem saldo.')
+                    reply('⏳ Processando...')
+                    try {
+                        const { data } = await axios.get(`${API_URL_LIKE}${idL}`)
+                        let saldo = isDono ? "INFINITO" : (isVip ? db.vips[sender].ids - 1 : (db.passes[sender] || 0) - 1)
+                        if (data.status === "success" && !isDono) {
+                            if (isVip) db.vips[sender].ids-- 
+                            else db.passes[sender]--
+                            saveDB(db)
+                        }
+                        reply(`⚔️ *PAINEL LIKES*\n\n👤 Nick: ${data.nickname}\n🆔 ID: ${data.id}\n❤️ Ganhou: ${data.likes_added}\n🏆 Total: ${data.likes_end}\n📦 Saldo: ${saldo}\n📡 Status: ${data.message}`)
+                    } catch { reply('❌ Erro na API.') }
+                    break
+                }
+
+                case 'check': {
+                    const idC = args[0]
+                    if (!idC) return reply('❌ Informe o ID.')
+                    try {
+                        const { data } = await axios.get(`${API_CHECK}${idC}`)
+                        reply(`⚔️ *PAINEL CONSULTA*\n\n👤 Nick: ${data.nickname}\n🆔 ID: ${data.id}\n📊 Nível: ${data.level}\n❤️ Likes: ${data.likes_end || data.likes_before}\n⏰ Login: ${data.login_end_formatted}`)
+                    } catch { reply('❌ Erro.') }
+                    break
+                }
+
+                case 'tema':
                     if (!isGroup) return
-                    const bTarget = msg.message.extendedTextMessage?.contextInfo?.mentionedJid?.[0] || msg.message.extendedTextMessage?.contextInfo?.participant
-                    if (!bTarget) return reply('❌ Marque ou responda a alguém.')
-                    await sock.groupParticipantsUpdate(from, [bTarget], 'remove')
-                    reply('🚫 Usuário banido com sucesso.')
+                    const choice = args[0]?.toLowerCase()
+                    if (!TEMAS[choice]) return reply(`🎨 Opções: kratos, princesa, zxguild`)
+                    db.grupos[from].tema = choice; saveDB(db); reply(`🎨 Tema: ${choice.toUpperCase()}`)
                     break
 
-                case 'info':
+                case 'addvip':
                     if (!isDono) return
-                    reply(`📊 *ESTATÍSTICAS*\n\n🔓 Acesso: ${db.config.publico ? 'Público' : 'Privado'}\n👥 Grupos: ${Object.keys(db.grupos).length}\n👑 VIPs: ${Object.keys(db.vips).length}`)
+                    const uV = (msg.message.extendedTextMessage?.contextInfo?.mentionedJid?.[0] || args[0] || '').replace(/\D/g, '')
+                    db.vips[uV] = { ids: parseInt(args[1]) || 10 }
+                    saveDB(db); reply(`⭐ VIP: @${uV}`)
                     break
+
+                                case 'perfil': {
+                    // Define o cargo do usuário para exibição
+                    const cargo = isDono ? 'DONO 👑' : (isVip ? 'VIP ⭐' : 'USUÁRIO FREE 👤');
+                    
+                    // Pega o saldo de envios VIP (se não existir, é 0)
+                    const saldoVip = isDono ? 'INFINITO' : (db.vips[sender]?.ids || 0);
+                    
+                    // Pega o saldo de passes unitários (se não existir, é 0)
+                    const saldoPasses = db.passes[sender] || 0;
+
+                    const textoPerfil = `👤 *SEU PERFIL - ${T.nome}* 👤\n\n` +
+                                      `📞 *Contato:* @${sender}\n` +
+                                      `🎖️ *Cargo:* ${cargo}\n\n` +
+                                      `━━━━━━━━━━━━━━━\n\n` +
+                                      `🔥 *Saldo VIP:* ${saldoVip}\n` +
+                                      `🎟️ *Saldo Passes:* ${saldoPasses}\n\n` +
+                                      `💡 _Use seu saldo para enviar likes ou fazer consultas via /like e /check._`;
+
+                    // Envia o perfil apenas para quem usou o comando
+                    reply(textoPerfil);
+                    break;
+                }
+
+
+                case 'info': {
+                    if (!isDono) return; 
+
+                    const totalGrupos = Object.keys(db.grupos).length;
+                    const totalVips = Object.keys(db.vips).length;
+                    const modoAtual = isGroup ? (db.grupos[from].publico ? '🔓 PÚBLICO' : '🔒 PRIVADO') : 'N/A';
+
+                    const textoInfo = `📊 *ESTATÍSTICAS DO SISTEMA*\n\n` +
+                                     `⚔️ *Bot:* ${NomeDoBot}\n` +
+                                     `👥 *Grupos Ativos:* ${totalGrupos}\n` +
+                                     `👑 *Usuários VIP:* ${totalVips}\n\n` +
+                                     `📍 *Este Grupo:*\n` +
+                                     `🛠️ *Configuração:* ${modoAtual}\n` +
+                                     `🎨 *Tema:* ${T.nome.toUpperCase()}\n\n` +
+                                     `📡 *Status:* Online e Operante`;
+
+                    reply(textoInfo);
+                    break;
+                } // <--- Esta chave fecha o bloco do INFO
+
+                case 'vip': { // <--- Agora este CASE está dentro do switch
+                    if (isVip || isDono) {
+                        const statusVip = isDono ? 'DONO 👑' : 'CLIENTE ⭐';
+                        const saldoVip = isDono ? 'INFINITO' : (db.vips[sender]?.ids || 0);
+
+                        const txtVip = `🎟️ *STATUS - ${T.nome}*\n\n` +
+                                     `👤 *Usuário:* @${sender.split('@')[0]}\n` +
+                                     `📊 *Status:* ${statusVip}\n` +
+                                     `🔥 *Envios Restantes:* ${saldoVip}\n\n` +
+                                     `✅ Você ainda pode realizar ${saldoVip} envios de likes.`;
+                        return reply(txtVip);
+                    }
+
+                    const tabelaPrecos = `⚔️ *RECARGAS DE LIKES - ${T.nome}* ⚔️\n\n` +
+                                       `Adquira envios unitários para usar no bot agora mesmo!\n\n` +
+                                       `🪙 *VALORES POR ENVIO:* \n\n` +
+                                       `📌 *1 ENVIO UNITÁRIO*\n` +
+                                       `• Valor: R$ 0,50\n\n` +
+                                       `📌 *PACOTE 10 ENVIOS*\n` +
+                                       `• Valor: R$ 4,00\n` +
+                                       `• _(R$ 0,40 por envio)_\n\n` +
+                                       `📌 *PACOTE 30 ENVIOS*\n` +
+                                       `• Valor: R$ 10,00\n` +
+                                       `• _(R$ 0,33 por envio)_\n\n` +
+                                       `📌 *PACOTE 100 ENVIOS*\n` +
+                                       `• Valor: R$ 25,00\n` +
+                                       `• _(R$ 0,25 p/ envio)_\n\n` +
+                                       `⚠️ *COMO RECARREGAR?*\n` +
+                                       `📞 wa.me/5551995588124`;
+
+                    if (fs.existsSync('./tabela.jpg')) {
+                        await sock.sendMessage(from, {
+                            image: fs.readFileSync('./tabela.jpg'),
+                            caption: tabelaPrecos
+                        }, { quoted: msg });
+                    } else {
+                        reply(tabelaPrecos);
+                    }
+                    break;
+                }
+
+                case 'clearlist': {
+                    if (!isDono) return reply('❌ Apenas o dono pode resetar a lista.')
+                    db.vips = {}
+                    saveDB(db)
+                    reply('⚠️ *LISTA VIP RESETADA!* ⚠️\nTodos os usuários VIP foram removidos.')
+                    break
+                }
             }
-        } catch (e) { console.log("Erro Mensagem:", e) }
+        } catch (e) {
+            console.log(e)
+        }
     })
 }
 
