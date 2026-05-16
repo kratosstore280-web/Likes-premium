@@ -14,7 +14,7 @@ const axios = require('axios')
 const DB_PATH = './database.json'
 const NomeDoBot = 'KRATOS-STORE'
 const NUMERO_CONEXAO = '556993543234' 
-const DONOS = ['556993543234', '5551995588124', '44930357551239', '25701671538894']
+const DONOS = ['556993543234','277936125034703', '5551995588124', '44930357551239', '25701671538894']
 
 const API_URL_LIKE = 'https://likesff.online/api/LIKE?key=LIKESFF-KLFF-KRATOSLIKESEPASSES&id='
 const API_URL_PASS = 'https://likesff.online/api/PASS?key=LIKESFF-KLFF-KRATOSLIKESEPASSES&id=' 
@@ -23,7 +23,8 @@ const API_CHECK = 'https://likesff-info.squareweb.app/check_basic?id='
 const TEMAS = {
     kratos: { nome: 'KRATOS', emoji: '⚔️', foto: './kratos.jpg' },
     princesa: { nome: 'PRINCESA', emoji: '👑', foto: './princesa.jpg' },
-    zxguild: { nome: 'ZXGUILD', emoji: '⚡', foto: './logo.jpg' }
+    zxguild: { nome: 'ZXGUILD', emoji: '⚡', foto: './logo.jpg' },
+    dark: { nome: 'DARK7X VENDAS', emoji: '🙅🏻‍♂️', foto: './dark.jpg' }
 }
 
 // ================= DATABASE =================
@@ -209,13 +210,46 @@ async function startBot() {
                     db.grupos[from].tema = choice; saveDB(db); reply(`🎨 Tema: ${choice.toUpperCase()}`)
                     break
 
-                case 'addvip':
+                case 'addvip': {
                     if (!isDono) return
-                    const uV = (msg.message.extendedTextMessage?.contextInfo?.mentionedJid?.[0] || args[0] || '').replace(/\D/g, '')
-                    db.vips[uV] = { ids: parseInt(args[1]) || 10 }
-                    saveDB(db); reply(`⭐ VIP: @${uV}`)
-                    break
 
+                    // Pega o JID puro da primeira menção ou usa o texto digitado
+                    let uV = msg.message.extendedTextMessage?.contextInfo?.mentionedJid?.[0] || args[0] || ''
+                    // Limpa para deixar só os números (ex: 556993543234)
+                    uV = uV.replace('@s.whatsapp.net', '').replace(/\D/g, '')
+
+                    if (!uV) return reply('❌ Marque o usuário ou informe o ID para adicionar como VIP.')
+
+                    // Define a quantidade de ids/likes (padrão 10 se não digitar nada)
+                    const qtdIds = parseInt(args[1]) || 10
+
+                    db.vips[uV] = { ids: qtdIds }
+                    saveDB(db)
+
+                    reply(`⭐ *VIP ADICIONADO*\n\n👤 Usuário: @${uV}\n🔥 Limite de Envios: ${qtdIds}`)
+                    break
+                }
+
+                case 'delvip': {
+                    if (!isDono) return
+
+                    // Pega o JID puro da primeira menção ou usa o texto digitado
+                    let uD = msg.message.extendedTextMessage?.contextInfo?.mentionedJid?.[0] || args[0] || ''
+                    uD = uD.replace('@s.whatsapp.net', '').replace(/\D/g, '')
+
+                    if (!uD) return reply('❌ Marque o usuário ou informe o ID para remover.')
+
+                    if (!db.vips[uD]) {
+                        return reply(`💡 O usuário @${uD} não está cadastrado na lista VIP.`)
+                    }
+
+                    delete db.vips[uD]
+                    saveDB(db)
+
+                    reply(`✅ *VIP REMOVIDO*\n\n👤 Usuário: @${uD}\nVoltou a ser usuário Free!`)
+                    break
+                }
+                
                 case 'perfil': {
                     const cargo = isDono ? 'DONO 👑' : (isVip ? 'VIP ⭐' : 'USUÁRIO FREE 👤');
                     const saldoVip = isDono ? 'INFINITO' : (db.vips[sender]?.ids || 0);

@@ -40,7 +40,7 @@
       "usoHoje": 0,
       "lastReset": "26/04/2026",
       "vips": {},
-      "tema": "zxguild",
+      "tema": "dark",
       "publico": true
     },
     "120363424964484831@g.us": {
@@ -97,6 +97,10 @@
     "120363423079214370@g.us": {
       "tema": "kratos",
       "modo": "publico"
+    },
+    "120363424852983733@g.us": {
+      "tema": "dark",
+      "publico": false
     }
   },
   "vips": {
@@ -105,6 +109,9 @@
     },
     "187600396615717": {
       "ids": 100
+    },
+    "6052246454434": {
+      "ids": 30
     }
   },
   "passes": {
