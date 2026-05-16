@@ -17,6 +17,7 @@ const NUMERO_CONEXAO = '556993543234'
 const DONOS = ['556993543234', '5551995588124', '44930357551239', '25701671538894']
 
 const API_URL_LIKE = 'https://likesff.online/api/LIKE?key=LIKESFF-KLFF-KRATOSLIKESEPASSES&id='
+const API_URL_PASS = 'https://likesff.online/api/PASS?key=LIKESFF-KLFF-KRATOSLIKESEPASSES&id=' 
 const API_CHECK = 'https://likesff-info.squareweb.app/check_basic?id='
 
 const TEMAS = {
@@ -36,18 +37,19 @@ const saveDB = (db) => fs.writeFileSync(DB_PATH, JSON.stringify(db, null, 2))
 
 // ================= BOT CORE =================
 async function startBot() {
-    const { state, saveCreds } = await useMultiFileAuthState('auth')
+    // Usando a pasta estável que definimos para a Discloud
+    const { state, saveCreds } = await useMultiFileAuthState('./auth_sessao')
     const { version } = await fetchLatestBaileysVersion()
 
     const sock = makeWASocket({
         auth: state,
         version,
         logger: P({ level: 'silent' }),
-        browser: ["Ubuntu", "Chrome", "20.0.04"], // Identificação estável
+        browser: ["Ubuntu", "Chrome", "20.0.04"],
         printQRInTerminal: true
     })
 
-    // Solicitação de Código de Pareamento
+    // Gerenciador de Pareamento por Código
     if (!sock.authState.creds.registered) {
         setTimeout(async () => {
             try {
@@ -62,13 +64,26 @@ async function startBot() {
 
     sock.ev.on('creds.update', saveCreds)
 
+    // CORREÇÃO ESSENCIAL: Impede o bot de morrer silenciosamente
     sock.ev.on('connection.update', (update) => {
         const { connection, lastDisconnect } = update
-        if (connection === 'open') console.log(`✅ ${NomeDoBot} CONECTADO COM SUCESSO!`)
+        
+        if (connection === 'connecting') {
+            console.log(`📡 Conectando ao WhatsApp...`)
+        }
+        
+        if (connection === 'open') {
+            console.log(`✅ ${NomeDoBot} CONECTADO COM SUCESSO E ONLINE!`)
+        }
+        
         if (connection === 'close') {
             const statusCode = (lastDisconnect?.error instanceof Boom) ? lastDisconnect.error.output.statusCode : 0
+            console.log(`❌ Conexão fechada. Código: ${statusCode}. Reiniciando...`)
+            
             if (statusCode !== DisconnectReason.loggedOut) {
                 setTimeout(() => startBot(), 5000)
+            } else {
+                console.log(`⚠️ Sessão encerrada permanentemente. Apague a pasta auth_sessao e conecte de novo.`)
             }
         }
     })
@@ -90,9 +105,8 @@ async function startBot() {
             
             const db = getDB()
             const isDono = DONOS.includes(sender)
-            const isVip = isDono || (db.vips[sender] && db.vips[sender].ids > 0)
+            const isVip = isDono || (db.vips[sender] && (db.vips[sender].ids || 0) > 0)
 
-            // Configuração do Grupo
             if (isGroup && !db.grupos[from]) {
                 db.grupos[from] = { tema: 'kratos', publico: true }
                 saveDB(db)
@@ -104,16 +118,6 @@ async function startBot() {
                 const mentions = text.match(/@(\d+)/g)?.map(v => v.replace('@', '') + '@s.whatsapp.net') || []
                 await sock.sendMessage(from, { text, mentions }, { quoted: msg })
             }
-
-// Comandos que funcionam para todos mesmo em grupo privado
-const comandosLivres = ['menu', 'perfil', 'saldo', 'vip', 'check'];
-
-if (isGroup && !grupo.publico && !isDono && !isVip) {
-    // Se o comando digitado NÃO estiver na lista de livres, ele bloqueia
-    if (!comandosLivres.includes(cmd)) {
-        return reply("🔒 *COMANDO RESTRITO*\nApenas VIPs podem usar este comando em grupos privados.");
-    }
-}
 
             switch (cmd) {
                 case 'menu': {
@@ -139,18 +143,52 @@ if (isGroup && !grupo.publico && !isDono && !isVip) {
                 case 'like': {
                     const idL = args[0]
                     if (!idL) return reply('❌ Informe o ID.')
-                    if (!isDono && !isVip && (db.passes[sender] || 0) <= 0) return reply('❌ Sem saldo.')
-                    reply('⏳ Processando...')
+                    
+                    if (!grupo.publico && !isVip) {
+                        return reply("🔒 *ENVIO RESTRITO*\nApenas usuários VIP podem usar o comando de likes neste grupo privado.")
+                    }
+                    
+                    reply('⏳ Processando Likes...')
                     try {
                         const { data } = await axios.get(`${API_URL_LIKE}${idL}`)
-                        let saldo = isDono ? "INFINITO" : (isVip ? db.vips[sender].ids - 1 : (db.passes[sender] || 0) - 1)
-                        if (data.status === "success" && !isDono) {
-                            if (isVip) db.vips[sender].ids-- 
-                            else db.passes[sender]--
+                        
+                        let exibirVip = "GRÁTIS (MODO PÚBLICO)"
+                        if (isDono) exibirVip = "INFINITO"
+                        else if (isVip) exibirVip = (db.vips[sender].ids - 1)
+
+                        if (data.status === "success" && !grupo.publico && !isDono && isVip) {
+                            db.vips[sender].ids--
                             saveDB(db)
                         }
-                        reply(`⚔️ *PAINEL LIKES*\n\n👤 Nick: ${data.nickname}\n🆔 ID: ${data.id}\n❤️ Ganhou: ${data.likes_added}\n🏆 Total: ${data.likes_end}\n📦 Saldo: ${saldo}\n📡 Status: ${data.message}`)
-                    } catch { reply('❌ Erro na API.') }
+                        reply(`⚔️ *PAINEL LIKES*\n\n👤 Nick: ${data.nickname}\n🆔 ID: ${data.id}\n❤️ Ganhou: ${data.likes_added}\n🏆 Total: ${data.likes_end}\n⭐ Limite VIP: ${exibirVip}\n📡 Status: ${data.message}`)
+                    } catch { reply('❌ Erro na API de Likes.') }
+                    break
+                }
+
+                case 'pass': {
+                    const idP = args[0]
+                    if (!idP) return reply('❌ Informe o ID.')
+                    
+                    if (!grupo.publico && !isVip) {
+                        return reply("🔒 *ENVIO RESTRITO*\nApenas usuários VIP podem enviar passes neste grupo privado.")
+                    }
+
+                    const saldoAtual = db.passes[sender] || 0
+                    if (!isDono && saldoAtual <= 0) {
+                        return reply('❌ Sem saldo de passes. Faça uma recarga!')
+                    }
+
+                    reply('⏳ Processando Passes...')
+                    try {
+                        const { data } = await axios.get(`${API_URL_PASS}${idP}`)
+                        let saldoRestante = isDono ? "INFINITO" : (saldoAtual - 1)
+
+                        if (data.status === "success" && !isDono) {
+                            db.passes[sender]--
+                            saveDB(db)
+                        }
+                        reply(`🎟️ *PAINEL PASSES*\n\n👤 Nick: ${data.nickname}\n🆔 ID: ${data.id}\n📦 Saldo de Passes: ${saldoRestante}\n📡 Status: ${data.message || 'Sucesso'}`)
+                    } catch { reply('❌ Erro na API de Passes.') }
                     break
                 }
 
@@ -178,33 +216,24 @@ if (isGroup && !grupo.publico && !isDono && !isVip) {
                     saveDB(db); reply(`⭐ VIP: @${uV}`)
                     break
 
-                                case 'perfil': {
-                    // Define o cargo do usuário para exibição
+                case 'perfil': {
                     const cargo = isDono ? 'DONO 👑' : (isVip ? 'VIP ⭐' : 'USUÁRIO FREE 👤');
-                    
-                    // Pega o saldo de envios VIP (se não existir, é 0)
                     const saldoVip = isDono ? 'INFINITO' : (db.vips[sender]?.ids || 0);
-                    
-                    // Pega o saldo de passes unitários (se não existir, é 0)
                     const saldoPasses = db.passes[sender] || 0;
 
                     const textoPerfil = `👤 *SEU PERFIL - ${T.nome}* 👤\n\n` +
                                       `📞 *Contato:* @${sender}\n` +
                                       `🎖️ *Cargo:* ${cargo}\n\n` +
                                       `━━━━━━━━━━━━━━━\n\n` +
-                                      `🔥 *Saldo VIP:* ${saldoVip}\n` +
-                                      `🎟️ *Saldo Passes:* ${saldoPasses}\n\n` +
+                                      `🔥 *Envios VIP (Likes):* ${saldoVip}\n` +
+                                      `🎟️ *Saldo de Passes:* ${saldoPasses}\n\n` +
                                       `💡 _Use seu saldo para enviar likes ou fazer consultas via /like e /check._`;
-
-                    // Envia o perfil apenas para quem usou o comando
                     reply(textoPerfil);
                     break;
                 }
 
-
                 case 'info': {
                     if (!isDono) return; 
-
                     const totalGrupos = Object.keys(db.grupos).length;
                     const totalVips = Object.keys(db.vips).length;
                     const modoAtual = isGroup ? (db.grupos[from].publico ? '🔓 PÚBLICO' : '🔒 PRIVADO') : 'N/A';
@@ -217,12 +246,11 @@ if (isGroup && !grupo.publico && !isDono && !isVip) {
                                      `🛠️ *Configuração:* ${modoAtual}\n` +
                                      `🎨 *Tema:* ${T.nome.toUpperCase()}\n\n` +
                                      `📡 *Status:* Online e Operante`;
-
                     reply(textoInfo);
                     break;
-                } // <--- Esta chave fecha o bloco do INFO
+                }
 
-                case 'vip': { // <--- Agora este CASE está dentro do switch
+                case 'vip': {
                     if (isVip || isDono) {
                         const statusVip = isDono ? 'DONO 👑' : 'CLIENTE ⭐';
                         const saldoVip = isDono ? 'INFINITO' : (db.vips[sender]?.ids || 0);
@@ -253,13 +281,8 @@ if (isGroup && !grupo.publico && !isDono && !isVip) {
                                        `📞 wa.me/5551995588124`;
 
                     if (fs.existsSync('./tabela.jpg')) {
-                        await sock.sendMessage(from, {
-                            image: fs.readFileSync('./tabela.jpg'),
-                            caption: tabelaPrecos
-                        }, { quoted: msg });
-                    } else {
-                        reply(tabelaPrecos);
-                    }
+                        await sock.sendMessage(from, { image: fs.readFileSync('./tabela.jpg'), caption: tabelaPrecos }, { quoted: msg });
+                    } else { reply(tabelaPrecos); }
                     break;
                 }
 
@@ -271,10 +294,9 @@ if (isGroup && !grupo.publico && !isDono && !isVip) {
                     break
                 }
             }
-        } catch (e) {
-            console.log(e)
-        }
+        } catch (e) { console.log(e) }
     })
 }
 
-startBot()
+// Executa o bot garantindo que o processo permaneça ativo
+startBot().catch(err => console.log("Erro crítico na inicialização:", err))
