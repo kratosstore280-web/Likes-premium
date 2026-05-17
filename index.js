@@ -214,7 +214,7 @@ sock.ev.on('messages.upsert', async ({ messages }) => {
                 case 'tema':
                     if (!isGroup) return
                     const choice = args[0]?.toLowerCase()
-                    if (!TEMAS[choice]) return reply(`🎨 Opções: kratos, princesa, zxguild`)
+                    if (!TEMAS[choice]) return reply(`🎨 Opções: kratos, princesa, dark,  zxguild`)
                     db.grupos[from].tema = choice; saveDB(db); reply(`🎨 Tema: ${choice.toUpperCase()}`)
                     break
 
