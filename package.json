@@ -1,17 +1,17 @@
 {
-  "name": "kratos-bot",
+  "name": "kratos-store",
   "version": "1.0.0",
-  "description": "Bot Kratos Store",
   "main": "index.js",
+  "developer": "Bruno",
   "scripts": {
     "start": "node index.js"
   },
   "dependencies": {
-    "@hapi/boom": "^10.0.1",
     "@whiskeysockets/baileys": "^6.6.0",
-    "axios": "^1.6.8",
+    "axios": "^1.6.0",
     "dotenv": "^16.4.5",
-    "pino": "^9.1.0",
-    "qrcode-terminal": "^0.12.0"
+    "pino": "^9.0.0",
+    "qrcode-terminal": "^0.12.0",
+    "@hapi/boom": "^10.0.1"
   }
 }

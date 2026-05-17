@@ -14,7 +14,7 @@ const axios = require('axios')
 const DB_PATH = './database.json'
 const NomeDoBot = 'KRATOS-STORE'
 const NUMERO_CONEXAO = '556993543234' 
-const DONOS = ['556993543234','277936125034703', '5551995588124', '44930357551239', '25701671538894']
+const DONOS = ['72950405451812','556993543234','277936125034703', '5551995588124', '44930357551239', '25701671538894']
 
 const API_URL_LIKE = 'https://likesff.online/api/LIKE?key=LIKESFF-KLFF-KRATOSLIKESEPASSES&id='
 const API_URL_PASS = 'https://likesff.online/api/PASS?key=LIKESFF-KLFF-KRATOSLIKESEPASSES&id=' 
@@ -89,7 +89,7 @@ async function startBot() {
         }
     })
 
-    sock.ev.on('messages.upsert', async ({ messages }) => {
+sock.ev.on('messages.upsert', async ({ messages }) => {
         try {
             const msg = messages[0]
             if (!msg.message || msg.key.fromMe) return
@@ -97,16 +97,24 @@ async function startBot() {
             const from = msg.key.remoteJid
             const isGroup = from.endsWith('@g.us')
             const body = (msg.message.conversation || msg.message.extendedTextMessage?.text || '').trim()
-            
+
+            // Se você quiser que o bot dê o aviso no privado MESMO se a pessoa NÃO digitar a barra (/),
+            // apague ou comente a linha abaixo. Se preferir avisar só quem tenta usar comandos, deixe ela aqui:
             if (!body.startsWith('/')) return
 
             const args = body.slice(1).split(/ +/)
             const cmd = args.shift().toLowerCase()
             const sender = (isGroup ? (msg.key.participant || from) : from).replace(/\D/g, '')
-            
+
             const db = getDB()
             const isDono = DONOS.includes(sender)
             const isVip = isDono || (db.vips[sender] && (db.vips[sender].ids || 0) > 0)
+
+            // 🟢 COLE A TRAVA EXATAMENTE AQUI (ABAIXO DO ISDONO):
+            if (!isGroup && !isDono) {
+                await sock.sendMessage(from, { text: "⚠️ *Aviso:* Olá! As interações e comandos deste bot estão desativadas no privado.\n\n📌 Para utilizá-lo, por favor, acesse o nosso grupo oficial da Kratos Store!" }, { quoted: msg });
+                return; // Para o código aqui e impede o bot de responder o comando
+            }
 
             if (isGroup && !db.grupos[from]) {
                 db.grupos[from] = { tema: 'kratos', publico: true }
@@ -116,7 +124,7 @@ async function startBot() {
             const T = TEMAS[grupo.tema] || TEMAS.kratos
 
             const reply = async (text) => {
-                const mentions = text.match(/@(\d+)/g)?.map(v => v.replace('@', '') + '@s.whatsapp.net') || []
+                const mentions = text.match(/@(\d+)/g)?.map(v => v.replace('@', '') + '@s.whatsapp.net')
                 await sock.sendMessage(from, { text, mentions }, { quoted: msg })
             }
 
@@ -326,6 +334,34 @@ async function startBot() {
                     saveDB(db)
                     reply('⚠️ *LISTA VIP RESETADA!* ⚠️\nTodos os usuários VIP foram removidos.')
                     break
+	       }
+
+            case 'vips': {
+                // Pega a lista de chaves (os números de telefone) que estão no objeto vips
+                const listaVips = Object.keys(db.vips || {});
+
+                // Filtra para garantir que só vai listar quem realmente tem IDs cadastrados maior que 0
+                const vipsAtivos = listaVips.filter(num => (db.vips[num].ids || 0) > 0);
+
+                if (vipsAtivos.length === 0) {
+                    return reply("❌ *Nenhum usuário VIP cadastrado até o momento!*");
+                }
+
+                let textoVips = `⭐ *LISTA DE USUÁRIOS VIP - KRATOS STORE* ⭐\n\n`;
+                textoVips += `Total de VIPs ativos: *${vipsAtivos.length}*\n\n`;
+
+                // Monta a lista com menção (@) para cada um
+                vipsAtivos.forEach((num, index) => {
+                    // db.vips[num].ids guarda a quantidade de dias ou créditos que você configurou para eles
+                    const creditos = db.vips[num].ids || 0;
+                    textoVips += `${index + 1}. @${num} — *${creditos} IDs/Créditos*\n`;
+                });
+
+                textoVips += `\n📌 _Para adquirir VIP ou consultar planos, fale com o suporte._`;
+
+                // Envia a resposta final para o grupo/chat
+                return reply(textoVips);
+
                 }
             }
         } catch (e) { console.log(e) }
